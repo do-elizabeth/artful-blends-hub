@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 
+import { SiteHeader } from "@/components/SiteHeader";
+import { addToGallery } from "@/lib/gallery";
 import uploadPreview from "@/assets/upload-preview.jpg";
 import resultWatercolor from "@/assets/result-watercolor.jpg";
 import resultMorning from "@/assets/result-morning.jpg";
