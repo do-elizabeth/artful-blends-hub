@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 
+import { SiteHeader } from "@/components/SiteHeader";
+import { addToGallery } from "@/lib/gallery";
 import uploadPreview from "@/assets/upload-preview.jpg";
 import resultWatercolor from "@/assets/result-watercolor.jpg";
 import resultMorning from "@/assets/result-morning.jpg";
@@ -114,31 +116,23 @@ function Index() {
           clearInterval(timer);
           setIsGenerating(false);
           setShowResults(true);
+          addToGallery(
+            RESULTS.map((result) => ({
+              src: result.src,
+              label: result.label,
+              prompt: prompt.trim(),
+            })),
+          );
           return 100;
         }
         return next;
       });
     }, interval);
-  }, []);
+  }, [prompt]);
 
   return (
     <div className="min-h-screen bg-paper text-ink antialiased">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-7">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-xl bg-clay font-display text-base font-medium text-panel">
-            h
-          </span>
-          <span className="font-display text-lg font-medium tracking-tight">Hearth</span>
-        </div>
-        <nav className="hidden items-center gap-8 text-sm text-muted sm:flex">
-          <a href="#" className="transition-colors hover:text-ink">Studio</a>
-          <a href="#" className="transition-colors hover:text-ink">Gallery</a>
-          <a href="#" className="transition-colors hover:text-ink">Notes</a>
-        </nav>
-        <button className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-panel ring-1 ring-ink/10 transition-transform hover:-translate-y-0.5">
-          Open account
-        </button>
-      </header>
+      <SiteHeader />
 
       <main className="mx-auto max-w-5xl px-6 pb-24">
         <section className="-mt-2 max-w-2xl">
@@ -286,9 +280,12 @@ function Index() {
                   Three interpretations, gently varied. Pick the one that feels right.
                 </p>
               </div>
-              <span className="hidden rounded-full bg-sage/15 px-3 py-1 text-xs font-medium text-sage sm:inline-block">
-                Ready
-              </span>
+              <Link
+                to="/gallery"
+                className="hidden rounded-full bg-sage/15 px-3 py-1 text-xs font-medium text-sage transition-colors hover:bg-sage/25 sm:inline-block"
+              >
+                See all in gallery
+              </Link>
             </div>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
