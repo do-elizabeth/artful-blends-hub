@@ -280,9 +280,12 @@ function Index() {
                   Three interpretations, gently varied. Pick the one that feels right.
                 </p>
               </div>
-              <span className="hidden rounded-full bg-sage/15 px-3 py-1 text-xs font-medium text-sage sm:inline-block">
-                Ready
-              </span>
+              <Link
+                to="/gallery"
+                className="hidden rounded-full bg-sage/15 px-3 py-1 text-xs font-medium text-sage transition-colors hover:bg-sage/25 sm:inline-block"
+              >
+                See all in gallery
+              </Link>
             </div>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
