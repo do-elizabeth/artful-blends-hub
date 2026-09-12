@@ -2,11 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 
 import { SiteHeader } from "@/components/SiteHeader";
-import { addToGallery } from "@/lib/gallery";
+import { useAuth } from "@/lib/auth-context";
+import { generateStudioImages } from "@/lib/generate-images";
+import { saveGenerations } from "@/lib/generations";
+import { buildGenerationPrompt, compressImage, imageSrcToDataUrl } from "@/lib/image";
 import uploadPreview from "@/assets/upload-preview.jpg";
-import resultWatercolor from "@/assets/result-watercolor.jpg";
-import resultMorning from "@/assets/result-morning.jpg";
-import resultWarmer from "@/assets/result-warmer.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,35 +31,24 @@ const STYLE_CHIPS = [
   "Textured",
 ];
 
-const RESULTS = [
-  {
-    id: "watercolor",
-    label: "Watercolor, cool light",
-    src: resultWatercolor,
-    alt: "The uploaded mug reinterpreted as a loose watercolor wash in cool blue light",
-  },
-  {
-    id: "morning",
-    label: "Morning light, grain",
-    src: resultMorning,
-    alt: "The uploaded mug bathed in soft morning window light with faint film grain",
-  },
-  {
-    id: "warmer",
-    label: "Warmer, softer",
-    src: resultWarmer,
-    alt: "The uploaded mug rendered in warmer, softer tones with gentle texture",
-  },
-];
+type StudioResult = {
+  id: string;
+  label: string;
+  src: string;
+  alt: string;
+};
 
 function Index() {
+  const { user, profile } = useAuth();
   const [uploadedImage, setUploadedImage] = useState<string>(uploadPreview);
   const [prompt, setPrompt] = useState("");
   const [selectedStyles, setSelectedStyles] = useState<string[]>(["Watercolor"]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [showResults, setShowResults] = useState(true);
+  const [showResults, setShowResults] = useState(false);
+  const [results, setResults] = useState<StudioResult[]>([]);
   const [keptResult, setKeptResult] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleStyle = useCallback((style: string) => {
@@ -99,36 +88,59 @@ function Index() {
     [handleFile]
   );
 
-  const generate = useCallback(() => {
+  const generate = useCallback(async () => {
+    if (!user) {
+      setGenerateError("Sign in to generate images. They are saved to your gallery.");
+      return;
+    }
+    if (profile && !profile.is_active) {
+      setGenerateError("This account is deactivated.");
+      return;
+    }
+
     setIsGenerating(true);
-    setProgress(0);
+    setProgress(8);
     setShowResults(false);
     setKeptResult(null);
+    setGenerateError(null);
 
-    const duration = 2200;
-    const interval = 60;
-    const step = 100 / (duration / interval);
+    const tick = window.setInterval(() => {
+      setProgress((prev) => (prev >= 90 ? prev : prev + 3));
+    }, 400);
 
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + step;
-        if (next >= 100) {
-          clearInterval(timer);
-          setIsGenerating(false);
-          setShowResults(true);
-          addToGallery(
-            RESULTS.map((result) => ({
-              src: result.src,
-              label: result.label,
-              prompt: prompt.trim(),
-            })),
-          );
-          return 100;
-        }
-        return next;
+    try {
+      const dataUrl = await compressImage(await imageSrcToDataUrl(uploadedImage));
+      const styleLine = selectedStyles.join(", ");
+      const variations = [
+        selectedStyles[0] ?? "Editorial light",
+        selectedStyles[1] ?? "Soft morning light",
+        selectedStyles[2] ?? "Warmer, softer",
+      ];
+      const generated = await generateStudioImages({
+        data: {
+          prompt: buildGenerationPrompt(prompt, selectedStyles),
+          imageDataUrl: dataUrl,
+          variations,
+        },
       });
-    }, interval);
-  }, [prompt]);
+      setResults(generated);
+      setShowResults(true);
+      await saveGenerations(
+        user.id,
+        generated.map((result) => ({
+          src: result.src,
+          label: result.label,
+          prompt: prompt.trim() || styleLine,
+        })),
+      );
+      setProgress(100);
+    } catch (error) {
+      setGenerateError(error instanceof Error ? error.message : "Generation failed. Please try again.");
+    } finally {
+      window.clearInterval(tick);
+      setIsGenerating(false);
+    }
+  }, [prompt, profile, selectedStyles, uploadedImage, user]);
 
   return (
     <div className="min-h-screen bg-paper text-ink antialiased">
@@ -241,7 +253,7 @@ function Index() {
                   {isGenerating ? `Settling… ${Math.round(progress)}%` : "Takes about 20 seconds."}
                 </p>
                 <button
-                  onClick={generate}
+                  onClick={() => void generate()}
                   disabled={isGenerating}
                   className="flex items-center gap-2 rounded-full bg-clay py-2.5 pr-5 pl-5 text-sm font-medium text-panel ring-1 ring-clay/20 transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
                 >
@@ -267,6 +279,11 @@ function Index() {
                   />
                 </div>
               )}
+              {generateError && (
+                <p className="mt-4 rounded-2xl bg-clay/10 px-4 py-3 text-xs font-medium text-clay">
+                  {generateError}
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -289,7 +306,7 @@ function Index() {
             </div>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
-              {RESULTS.map((result) => {
+              {results.map((result) => {
                 const isKept = keptResult === result.id;
                 return (
                   <div key={result.id} className="group">

@@ -1,43 +1,46 @@
-export type GalleryItem = {
+import resultMorning from "@/assets/result-morning.jpg";
+import resultWarmer from "@/assets/result-warmer.jpg";
+import resultWatercolor from "@/assets/result-watercolor.jpg";
+
+export type DefaultGalleryItem = {
   id: string;
   src: string;
   label: string;
   prompt: string;
-  createdAt: number;
+  default: true;
 };
 
-const KEY = "hearth.gallery";
+export const DEFAULT_GALLERY: DefaultGalleryItem[] = [
+  {
+    id: "default-watercolor",
+    src: resultWatercolor,
+    label: "Watercolor",
+    prompt: "A quiet watercolor reading of morning light on the table.",
+    default: true,
+  },
+  {
+    id: "default-morning",
+    src: resultMorning,
+    label: "Soft morning light",
+    prompt: "Cooler air, softer edges, the hour just after sunrise.",
+    default: true,
+  },
+  {
+    id: "default-warmer",
+    src: resultWarmer,
+    label: "Warmer",
+    prompt: "A warmer grade, film grain, and a little more texture.",
+    default: true,
+  },
+];
 
-export function readGallery(): GalleryItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as GalleryItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function addToGallery(items: Omit<GalleryItem, "id" | "createdAt">[]) {
-  if (typeof window === "undefined") return;
-  const now = Date.now();
-  const next: GalleryItem[] = [
-    ...items.map((item, index) => ({
-      ...item,
-      id: `${now}-${index}`,
-      createdAt: now,
-    })),
-    ...readGallery(),
-  ].slice(0, 60);
-  window.localStorage.setItem(KEY, JSON.stringify(next));
-}
-
-export function removeFromGallery(id: string) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    KEY,
-    JSON.stringify(readGallery().filter((item) => item.id !== id)),
-  );
+export function downloadImageSrc(src: string, filename: string) {
+  const link = document.createElement("a");
+  link.href = src;
+  link.download = filename;
+  link.rel = "noopener";
+  link.target = "_self";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
